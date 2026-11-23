@@ -73,6 +73,16 @@ try{best=+localStorage.getItem(bk())||0}catch(e){}
 const RANK_API='https://rakugaki-runner-ranking.t-t14.workers.dev';
 let lastScore=0,INKC=null,myName='',uid=null,rows=[],dbState='load',myRank=null,myBest=null,rankTotal=0;
 let nameLocked=false,lastLocal=null;try{nameLocked=localStorage.getItem('dd_namelock')=='1'}catch(e){}
+const VER='4';
+async function checkUpdate(){
+  try{
+    const r=await fetch(location.pathname,{cache:'no-store'});
+    const tx=await r.text();
+    const m=tx.match(/const VER='([^']+)'/);
+    if(m&&m[1]!==VER&&!sessionStorage.getItem('dd_vchk')){sessionStorage.setItem('dd_vchk','1');location.replace(location.pathname+'?v='+m[1])}
+  }catch(e){}
+}
+checkUpdate();
 try{uid=localStorage.getItem('dd_uuid')||'';if(!uid){uid=(crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c=='x'?r:r&3|8).toString(16)}));localStorage.setItem('dd_uuid',uid)}}catch(e){uid='unknown-device-0000'}
 try{INKC=localStorage.getItem('dd_color')||null;myName=localStorage.getItem('dd_name')||''}catch(e){}
 const dark=()=>matchMedia('(prefers-color-scheme: dark)').matches;
@@ -140,6 +150,7 @@ function localTop(){
   const bs=[+localStorage.getItem('dd_best')||0,+localStorage.getItem('dd_best_h')||0,+localStorage.getItem('dd_best_i')||0];
   bs.forEach((b,m)=>{if(b>0&&!d[m].some(e=>e.s==b))d[m].push({s:b,d:'',n:myName||'ななし'})});
   for(const m of [0,1,2]){d[m].sort((a,b)=>b.s-a.s);d[m]=d[m].slice(0,10)}
+  for(const m of [0,1,2])d[m].forEach(e=>{if(!e.n)e.n=myName||'ななし'});
   return d;
 }
 function recordLocal(sc){
