@@ -306,7 +306,7 @@ function draw(){
   g.fillStyle=ink<50?'#d7263d':(INKC||C.pen);g.fillRect(w-134,30,120*ink/INK,12);
   if(hard){g.textAlign='left';g.font='bold 14px Yomogi,sans-serif';g.fillStyle='#d7263d';g.fillText('HARD',14,54)}
   if(scav){g.textAlign='left';g.font='bold 14px Yomogi,sans-serif';g.fillStyle=C.ink;g.fillText('インク拾い',14,54)}
-  if(toast&&t<toast.u){g.textAlign='center';g.font='bold 18px Yomogi,sans-serif';g.fillStyle=C.ink;g.fillText(toast.t,w/2,H-40)}
+  if(toast&&t<toast.u){g.textAlign='center';g.font='bold 18px Yomogi,sans-serif';g.fillStyle=C.ink;g.fillText(toast.t,w/2,H-120)}
   }
 }
 let lt=performance.now(),pzOn=false;
