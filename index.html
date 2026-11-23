@@ -68,7 +68,9 @@ const MODES=['ノーマル','ハード(トゲ・敵)','インク拾い'];
 const MD=['','トゲと敵が出る。線で敵を倒せる','インクは拾った分だけ。道ばたのしずくを集めよう'];
 const bk=()=>'dd_best'+['','_h','_i'][modeIdx()];
 try{best=+localStorage.getItem(bk())||0}catch(e){}
-let lastScore=0,INKC=null,myName='',db=null,uid=null,rows=[],dbState='load';
+const RANK_API='https://rakugaki-runner-ranking.t-t14.workers.dev';
+let lastScore=0,INKC=null,myName='',uid=null,rows=[],dbState='load',myRank=null,myBest=null,rankTotal=0;
+try{uid=localStorage.getItem('dd_uuid')||'';if(!uid){uid=(crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c=='x'?r:r&3|8).toString(16)}));localStorage.setItem('dd_uuid',uid)}}catch(e){uid='unknown-device-0000'}
 try{INKC=localStorage.getItem('dd_color')||null;myName=localStorage.getItem('dd_name')||''}catch(e){}
 const dark=()=>matchMedia('(prefers-color-scheme: dark)').matches;
 function fit(){
@@ -140,52 +142,50 @@ function bindMenu(){
   const rg=$('#reg');if(rg)rg.onclick=async()=>{
     const m=$('#regmsg');
     if(!myName){m.textContent='名前を入力してください';return}
-    if(!db||!uid){m.textContent='ランキングにつながっていません';return}
     rg.disabled=true;const r=await submit(lastScore);
-    m.textContent=r=='new'?'登録しました!':r=='no'?'自己ベストを更新していないため、点数は据え置きです(名前は更新)':'登録できませんでした(閲覧のみの権限かもしれません)';
+    m.textContent=r=='new'?'登録しました!':r=='no'?'自己ベストを更新していないため、点数は据え置きです(名前は更新)':r=='ng'?'その名前は使えません。別の名前にしてください':r=='fast'?'少し待ってから登録してください':'登録できませんでした。電波の良いところでもう一度お試しください';
     rg.disabled=false
   }
 }
 function renderRank(){
   const ol=$('#rk');if(!ol)return;ol.innerHTML='';
   const add=t=>{const li=document.createElement('li');li.textContent=t;ol.appendChild(li);return li};
-  if(dbState=='none'){ol.style.listStyle='none';ol.style.paddingLeft='0';add('ランキングを使うには、claude.aiでサインインして開いてください。');return}
+  if(dbState=='none'){ol.style.listStyle='none';ol.style.paddingLeft='0';add('ランキングを読み込めませんでした');return}
   if(dbState=='load'){ol.style.listStyle='none';ol.style.paddingLeft='0';add('読み込み中…');return}
   if(dbState=='slow'){ol.style.listStyle='none';ol.style.paddingLeft='0';add('ランキングにつながりません。少し待ってください。');return}
   if(!rows.length){ol.style.listStyle='none';ol.style.paddingLeft='0';add('まだ記録がありません');return}
   ol.style.listStyle='decimal';ol.style.paddingLeft='1.6em';
-  rows.slice(0,10).forEach(r=>add(`${r.name||'ななし'}  ${r.score}点`))
+  rows.slice(0,10).forEach(r=>add(`${r.name||'ななし'}  ${r.score}点`));
+  if(myBest){const li=add(`あなたは ${rankTotal}人中 ${myRank}位（${myBest.score}点）`);li.style.listStyle='none';li.style.marginTop='4px';li.style.fontWeight='700'}
 }
 async function submit(sc){
-  if(!db||!uid||sc<=0)return'err';
+  if(!uid||sc<=0)return'err';
   try{
-    const ref=db.doc(COLL()+'/'+uid),s=await ref.get(),cur=s&&(typeof s.data=='function'?s.data():s.data);
-    if(!cur||(cur.score||0)<sc){await ref.set({name:myName||'ななし',score:sc,at:Date.now()});return'new'}
-    if(myName&&cur.name!==myName)await ref.update({name:myName});return'no'
+    const res=await fetch(RANK_API+'/scores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uuid:uid,name:myName||'ななし',score:sc,mode:modeIdx()})});
+    const d=await res.json().catch(()=>null);
+    if(res.status==429)return'fast';
+    if(!res.ok||!d||!d.ok)return d&&d.error=='name not allowed'?'ng':'err';
+    fetchRank();
+    return d.updated?'new':'no'
   }catch(e){return'err'}
 }
-const COLL=()=>['scores','scoresHard','scoresInk'][modeIdx()];
-function sub(){
-  if(!db)return;if(unsub){try{unsub()}catch(e){}unsub=null}
-  const to=setTimeout(()=>{dbState='slow';renderRank()},10000);
-  unsub=db.collection(COLL()).orderBy('score','desc').limit(20).onSnapshot(snap=>{
-    clearTimeout(to);const a=[];
-    if(snap.forEach)snap.forEach(x=>a.push(typeof x.data=='function'?x.data():x.data));else if(snap.docs)snap.docs.forEach(x=>a.push(typeof x.data=='function'?x.data():x.data));
-    rows=a.filter(Boolean);dbState='ok';renderRank()
-  },()=>{clearTimeout(to);dbState='none';renderRank()})
+async function fetchRank(){
+  const md=modeIdx();let timed=false;
+  try{
+    const ctl=new AbortController();const to=setTimeout(()=>{timed=true;ctl.abort()},10000);
+    const res=await fetch(RANK_API+'/ranking?mode='+md+'&uuid='+encodeURIComponent(uid),{signal:ctl.signal});
+    clearTimeout(to);
+    if(!res.ok)throw 0;
+    const d=await res.json();
+    if(md!==modeIdx())return;
+    rows=d.top||[];rankTotal=d.total||0;myRank=d.myRank;myBest=d.myBest;dbState='ok'
+  }catch(e){if(md===modeIdx()&&dbState!='ok')dbState=timed?'slow':'none'}
+  renderRank()
 }
 function setMode(h){
   if(h===modeIdx())return;hard=h==1;scav=h==2;
   try{localStorage.setItem('dd_mode',h);best=+localStorage.getItem(bk())||0}catch(e){}
-  rows=[];if(db)dbState='load';sub();title()
-}
-async function initDb(){
-  try{
-    const [d,u]=await Promise.all([claude.use('db'),claude.use('user')]);
-    if(!d||!u){dbState='none';renderRank();return}
-    db=d;uid=await u.id();
-    sub()
-  }catch(e){dbState='none';renderRank()}
+  rows=[];myRank=null;myBest=null;rankTotal=0;dbState='load';fetchRank();title()
 }
 function box(html){$('#box').innerHTML=html.replace('<div class="b">',menuHtml()+'<div class="b">');$('#ov').classList.remove('hide');bindMenu()}
 function title(){st='title';reset();box(`<h1>らくがきランナー</h1><p>キャラは自動で右へ進む。<br>指でなぞった線が、足場になる。</p><p>インクは限りがある。<br>穴に落ちず、星を集めよう。</p>${best?`<p>最高 ${best}点</p>`:''}<div class="b">タップでスタート</div>`)}
@@ -314,7 +314,7 @@ function loop(now){
   const pv=st=='play';if(pv!==pzOn){pzOn=pv;$('#pz').style.display=pv?'flex':'none'}
   draw();requestAnimationFrame(loop)
 }
-title();requestAnimationFrame(loop);initDb();
+title();requestAnimationFrame(loop);fetchRank();
 </script>
 </body>
 </html>
