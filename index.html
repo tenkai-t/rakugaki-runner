@@ -2,17 +2,17 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>らくがきランナー</title>
 <link href="https://fonts.googleapis.com/css2?family=Yomogi&display=swap" rel="stylesheet">
 <style>
 :root{box-sizing:border-box}
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;overflow:hidden;background:#dfe5ec;overscroll-behavior:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#dfe5ec;overscroll-behavior:none;touch-action:manipulation}
 @media (prefers-color-scheme:dark){html,body{background:#0f1218}}
 body{font-family:"Yomogi","Hiragino Maru Gothic ProN","Hiragino Sans",system-ui,sans-serif;-webkit-user-select:none;user-select:none}
 #c{display:block;margin:0 auto;touch-action:none}
-#ov{position:fixed;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#1b2540;cursor:pointer}
+#ov{touch-action:manipulation;position:fixed;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#1b2540;cursor:pointer}
 #box{max-height:92vh;overflow:auto;background:#fff;border:3px solid #1b2540;border-radius:14px;padding:18px 22px;max-width:320px;box-shadow:4px 5px 0 #1b2540;transform:rotate(-1.5deg)}
 @media (prefers-color-scheme:dark){#box{background:#1d2330;color:#e8ecf4;border-color:#e8ecf4;box-shadow:4px 5px 0 #e8ecf4}}
 #ov h1{margin:0 0 6px;font-size:30px}
@@ -73,7 +73,7 @@ try{best=+localStorage.getItem(bk())||0}catch(e){}
 const RANK_API='https://rakugaki-runner-ranking.t-t14.workers.dev';
 let lastScore=0,INKC=null,myName='',uid=null,rows=[],dbState='load',myRank=null,myBest=null,rankTotal=0;
 let lastLocal=null;try{localStorage.removeItem('dd_namelock')}catch(e){}
-const VER='5';
+const VER='6';
 async function checkUpdate(){
   try{
     const r=await fetch(location.pathname,{cache:'no-store'});
