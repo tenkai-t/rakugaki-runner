@@ -6,4 +6,4 @@ compatibility_date = "2025-06-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "rakugaki-runner-ranking-db"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "6aa4c375-4f8a-49de-b848-bae9f03cda45"
