@@ -72,6 +72,7 @@ const bk=()=>'dd_best'+['','_h','_i'][modeIdx()];
 try{best=+localStorage.getItem(bk())||0}catch(e){}
 const RANK_API='https://rakugaki-runner-ranking.t-t14.workers.dev';
 let lastScore=0,INKC=null,myName='',uid=null,rows=[],dbState='load',myRank=null,myBest=null,rankTotal=0;
+let nameLocked=false,lastLocal=null;try{nameLocked=localStorage.getItem('dd_namelock')=='1'}catch(e){}
 try{uid=localStorage.getItem('dd_uuid')||'';if(!uid){uid=(crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c=='x'?r:r&3|8).toString(16)}));localStorage.setItem('dd_uuid',uid)}}catch(e){uid='unknown-device-0000'}
 try{INKC=localStorage.getItem('dd_color')||null;myName=localStorage.getItem('dd_name')||''}catch(e){}
 const dark=()=>matchMedia('(prefers-color-scheme: dark)').matches;
@@ -136,17 +137,31 @@ function localTop(){
   let d=null;try{d=JSON.parse(localStorage.getItem('dd_local')||'null')}catch(e){}
   if(!d||typeof d!='object')d={};
   for(const m of [0,1,2])if(!Array.isArray(d[m]))d[m]=[];
-  const bs=[+localStorage.getItem('dd_best')||0,+localStorage.getItem('dd_best1')||0,+localStorage.getItem('dd_best2')||0];
-  bs.forEach((b,m)=>{if(b>0&&!d[m].some(e=>e.s==b))d[m].push({s:b,d:''})});
+  const bs=[+localStorage.getItem('dd_best')||0,+localStorage.getItem('dd_best_h')||0,+localStorage.getItem('dd_best_i')||0];
+  bs.forEach((b,m)=>{if(b>0&&!d[m].some(e=>e.s==b))d[m].push({s:b,d:'',n:myName||'ななし'})});
   for(const m of [0,1,2]){d[m].sort((a,b)=>b.s-a.s);d[m]=d[m].slice(0,10)}
   return d;
 }
 function recordLocal(sc){
   if(sc<=0)return;
   const d=localTop(),now=new Date(),ds=(now.getMonth()+1)+'/'+now.getDate();
-  d[modeIdx()].push({s:sc,d:ds});
+  d[modeIdx()].push({s:sc,d:ds,n:myName||'ななし'});lastLocal={m:modeIdx(),s:sc,d:ds};
   d[modeIdx()].sort((a,b)=>b.s-a.s);d[modeIdx()]=d[modeIdx()].slice(0,10);
   try{localStorage.setItem('dd_local',JSON.stringify(d))}catch(e){}
+}
+function nameLocal(){
+  if(!lastLocal)return;
+  let d=null;try{d=JSON.parse(localStorage.getItem('dd_local')||'null')}catch(e){}
+  if(!d||!Array.isArray(d[lastLocal.m]))return;
+  const e=d[lastLocal.m].find(x=>x.s==lastLocal.s&&x.d==lastLocal.d);
+  if(e){e.n=myName||'ななし';try{localStorage.setItem('dd_local',JSON.stringify(d))}catch(err){}}
+}
+function lockName(n){
+  if(!n)return;
+  myName=n;nameLocked=true;
+  try{localStorage.setItem('dd_name',n);localStorage.setItem('dd_namelock','1')}catch(e){}
+  const nm=$('#nm');if(nm){nm.value=n;nm.disabled=true}
+  nameLocal();
 }
 function menuHtml(){
   return `${st=='title'?`<div style="margin:8px 0;display:flex;gap:6px;justify-content:center">${[0,1,2].map(h=>`<button class="md" data-h="${h}" style="font:inherit;font-weight:700;border:2px solid currentColor;border-radius:6px;padding:6px 12px;cursor:pointer;background:${modeIdx()==h?'#ffd23f':'transparent'};color:${modeIdx()==h?'#1b2540':'inherit'}">${MODES[h]}</button>`).join('')}</div><div style="font-size:12px;margin-bottom:4px">${MD[modeIdx()]}</div>`:''}<div style="margin-top:8px;font-size:14px">インクの色</div><div id="sw" style="display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap;margin:6px 0">${COLS.map(c=>`<button class="sw${c===(INKC||'#f08c00')?' on':''}" data-c="${c}" style="background:${c}" aria-label="インク色 ${c}"></button>`).join('')}<input type="color" id="cc" value="${INKC||'#f08c00'}" aria-label="好きな色を選ぶ"></div>${st=='over'?`<div style="font-size:14px;margin-top:6px">名前 <input id="nm" maxlength="10" placeholder="なまえ" style="font:inherit;width:8em;padding:4px 6px;border:2px solid currentColor;border-radius:6px;background:transparent;color:inherit"> <button id="reg" style="font:inherit;font-weight:700;border:2px solid currentColor;border-radius:6px;background:#ffd23f;color:#1b2540;padding:4px 12px;cursor:pointer">登録</button></div><div id="regmsg" style="font-size:13px;min-height:18px" role="status">名前を入れて登録すると、ランキングに載ります</div>`:''}${achHtml()}<div style="margin-top:8px;font-size:14px;font-weight:700">ランキング(${MODES[modeIdx()].replace(/\(.*\)/,'')})</div><div style="margin:6px 0 2px;display:flex;gap:6px;justify-content:center">${[['on','オンライン'],['local','この端末']].map(([k,n])=>`<button class="rt" data-t="${k}" style="font:inherit;font-size:13px;font-weight:700;border:2px solid currentColor;border-radius:6px;padding:4px 12px;cursor:pointer;background:${rkTab==k?'#ffd23f':'transparent'};color:${rkTab==k?'#1b2540':'inherit'}">${n}</button>`).join('')}</div><ol id="rk" style="text-align:left;margin:4px 0 0;padding-left:1.6em;font-size:14px;max-height:140px;overflow:auto"></ol>`
@@ -157,13 +172,14 @@ function bindMenu(){
   document.querySelectorAll('.md').forEach(b=>b.onclick=()=>setMode(+b.dataset.h));
   document.querySelectorAll('.rt').forEach(b=>b.onclick=()=>{rkTab=b.dataset.t;document.querySelectorAll('.rt').forEach(x=>{const on=x.dataset.t==rkTab;x.style.background=on?'#ffd23f':'transparent';x.style.color=on?'#1b2540':'inherit'});renderRank()});
   const cc=$('#cc');if(cc)cc.oninput=()=>setInk(cc.value);
-  const nm=$('#nm');if(nm){nm.value=myName;nm.oninput=()=>{myName=nm.value.trim().slice(0,10);try{localStorage.setItem('dd_name',myName)}catch(e){}}}
+  const nm=$('#nm');if(nm){nm.value=myName;nm.oninput=()=>{myName=nm.value.trim().slice(0,10);try{localStorage.setItem('dd_name',myName)}catch(e){}nameLocal()}}
+  if(nm&&nameLocked){nm.disabled=true;const m2=$('#regmsg');if(m2)m2.textContent='名前は登録したときの名前で固定されています'}
   renderRank();
   const rg=$('#reg');if(rg)rg.onclick=async()=>{
     const m=$('#regmsg');
     if(!myName){m.textContent='名前を入力してください';return}
     rg.disabled=true;const r=await submit(lastScore);
-    m.textContent=r=='new'?'登録しました!':r=='no'?'自己ベストを更新していないため、点数は据え置きです(名前は更新)':r=='ng'?'その名前は使えません。別の名前にしてください':r=='fast'?'少し待ってから登録してください':'登録できませんでした。電波の良いところでもう一度お試しください';
+    m.textContent=r=='new'?'登録しました!':r=='no'?'自己ベストを更新していないため、点数は据え置きです':r=='ng'?'その名前は使えません。別の名前にしてください':r=='fast'?'少し待ってから登録してください':'登録できませんでした。電波の良いところでもう一度お試しください';
     rg.disabled=false
   }
 }
@@ -174,7 +190,7 @@ function renderRank(){
     const list=localTop()[modeIdx()];
     if(!list.length){ol.style.listStyle='none';ol.style.paddingLeft='0';add('まだ記録がありません');return}
     ol.style.listStyle='decimal';ol.style.paddingLeft='1.6em';
-    list.forEach(e=>add(e.d?`${e.s}点（${e.d}）`:`${e.s}点`));
+    list.forEach(e=>add(e.d?`${e.n||'ななし'}  ${e.s}点（${e.d}）`:`${e.n||'ななし'}  ${e.s}点`));
     return;
   }
   if(dbState=='none'){ol.style.listStyle='none';ol.style.paddingLeft='0';add('ランキングを読み込めませんでした');return}
@@ -192,6 +208,7 @@ async function submit(sc){
     const d=await res.json().catch(()=>null);
     if(res.status==429)return'fast';
     if(!res.ok||!d||!d.ok)return d&&d.error=='name not allowed'?'ng':'err';
+    if(d.name)lockName(d.name);
     fetchRank();
     return d.updated?'new':'no'
   }catch(e){return'err'}
@@ -205,7 +222,7 @@ async function fetchRank(){
     if(!res.ok)throw 0;
     const d=await res.json();
     if(md!==modeIdx())return;
-    rows=d.top||[];rankTotal=d.total||0;myRank=d.myRank;myBest=d.myBest;dbState='ok'
+    rows=d.top||[];rankTotal=d.total||0;myRank=d.myRank;myBest=d.myBest;dbState='ok';if(d.myName)lockName(d.myName)
   }catch(e){if(md===modeIdx()&&dbState!='ok')dbState=timed?'slow':'none'}
   renderRank()
 }
