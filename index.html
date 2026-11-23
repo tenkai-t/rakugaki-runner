@@ -131,13 +131,31 @@ const ACH=[
 function checkAch(){for(const [id,n,d,f] of ACH){if(!ach[id]&&f()){ach[id]=1;newAch.push(n);toast={t:'🏆 実績解除: '+n,u:t+3};try{localStorage.setItem('dd_ach',JSON.stringify(ach))}catch(e){}}}}
 function achHtml(){const n=ACH.filter(a=>ach[a[0]]).length;return `<details style="margin-top:8px;font-size:14px;text-align:left"><summary style="cursor:pointer;font-weight:700">実績 ${n}/${ACH.length}</summary><ul style="margin:4px 0 0;padding-left:0;list-style:none;font-size:13px">${ACH.map(a=>`<li>${ach[a[0]]?'🏆':'🔒'} <b>${a[1]}</b> ${a[2]}</li>`).join('')}</ul></details>`}
 const COLS=['#2a55d4','#d7263d','#1f9d55','#8e44ad','#f08c00','#111111','#ff5fa2','#00a6a6','#ffffff'];
+let rkTab='on';
+function localTop(){
+  let d=null;try{d=JSON.parse(localStorage.getItem('dd_local')||'null')}catch(e){}
+  if(!d||typeof d!='object')d={};
+  for(const m of [0,1,2])if(!Array.isArray(d[m]))d[m]=[];
+  const bs=[+localStorage.getItem('dd_best')||0,+localStorage.getItem('dd_best1')||0,+localStorage.getItem('dd_best2')||0];
+  bs.forEach((b,m)=>{if(b>0&&!d[m].some(e=>e.s==b))d[m].push({s:b,d:''})});
+  for(const m of [0,1,2]){d[m].sort((a,b)=>b.s-a.s);d[m]=d[m].slice(0,10)}
+  return d;
+}
+function recordLocal(sc){
+  if(sc<=0)return;
+  const d=localTop(),now=new Date(),ds=(now.getMonth()+1)+'/'+now.getDate();
+  d[modeIdx()].push({s:sc,d:ds});
+  d[modeIdx()].sort((a,b)=>b.s-a.s);d[modeIdx()]=d[modeIdx()].slice(0,10);
+  try{localStorage.setItem('dd_local',JSON.stringify(d))}catch(e){}
+}
 function menuHtml(){
-  return `${st=='title'?`<div style="margin:8px 0;display:flex;gap:6px;justify-content:center">${[0,1,2].map(h=>`<button class="md" data-h="${h}" style="font:inherit;font-weight:700;border:2px solid currentColor;border-radius:6px;padding:6px 12px;cursor:pointer;background:${modeIdx()==h?'#ffd23f':'transparent'};color:${modeIdx()==h?'#1b2540':'inherit'}">${MODES[h]}</button>`).join('')}</div><div style="font-size:12px;margin-bottom:4px">${MD[modeIdx()]}</div>`:''}<div style="margin-top:8px;font-size:14px">インクの色</div><div id="sw" style="display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap;margin:6px 0">${COLS.map(c=>`<button class="sw${c===(INKC||'#f08c00')?' on':''}" data-c="${c}" style="background:${c}" aria-label="インク色 ${c}"></button>`).join('')}<input type="color" id="cc" value="${INKC||'#f08c00'}" aria-label="好きな色を選ぶ"></div>${st=='over'?`<div style="font-size:14px;margin-top:6px">名前 <input id="nm" maxlength="10" placeholder="なまえ" style="font:inherit;width:8em;padding:4px 6px;border:2px solid currentColor;border-radius:6px;background:transparent;color:inherit"> <button id="reg" style="font:inherit;font-weight:700;border:2px solid currentColor;border-radius:6px;background:#ffd23f;color:#1b2540;padding:4px 12px;cursor:pointer">登録</button></div><div id="regmsg" style="font-size:13px;min-height:18px" role="status">名前を入れて登録すると、ランキングに載ります</div>`:''}${achHtml()}<div style="margin-top:8px;font-size:14px;font-weight:700">ランキング(${MODES[modeIdx()].replace(/\(.*\)/,'')})</div><ol id="rk" style="text-align:left;margin:4px 0 0;padding-left:1.6em;font-size:14px;max-height:140px;overflow:auto"></ol>`
+  return `${st=='title'?`<div style="margin:8px 0;display:flex;gap:6px;justify-content:center">${[0,1,2].map(h=>`<button class="md" data-h="${h}" style="font:inherit;font-weight:700;border:2px solid currentColor;border-radius:6px;padding:6px 12px;cursor:pointer;background:${modeIdx()==h?'#ffd23f':'transparent'};color:${modeIdx()==h?'#1b2540':'inherit'}">${MODES[h]}</button>`).join('')}</div><div style="font-size:12px;margin-bottom:4px">${MD[modeIdx()]}</div>`:''}<div style="margin-top:8px;font-size:14px">インクの色</div><div id="sw" style="display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap;margin:6px 0">${COLS.map(c=>`<button class="sw${c===(INKC||'#f08c00')?' on':''}" data-c="${c}" style="background:${c}" aria-label="インク色 ${c}"></button>`).join('')}<input type="color" id="cc" value="${INKC||'#f08c00'}" aria-label="好きな色を選ぶ"></div>${st=='over'?`<div style="font-size:14px;margin-top:6px">名前 <input id="nm" maxlength="10" placeholder="なまえ" style="font:inherit;width:8em;padding:4px 6px;border:2px solid currentColor;border-radius:6px;background:transparent;color:inherit"> <button id="reg" style="font:inherit;font-weight:700;border:2px solid currentColor;border-radius:6px;background:#ffd23f;color:#1b2540;padding:4px 12px;cursor:pointer">登録</button></div><div id="regmsg" style="font-size:13px;min-height:18px" role="status">名前を入れて登録すると、ランキングに載ります</div>`:''}${achHtml()}<div style="margin-top:8px;font-size:14px;font-weight:700">ランキング(${MODES[modeIdx()].replace(/\(.*\)/,'')})</div><div style="margin:6px 0 2px;display:flex;gap:6px;justify-content:center">${[['on','オンライン'],['local','この端末']].map(([k,n])=>`<button class="rt" data-t="${k}" style="font:inherit;font-size:13px;font-weight:700;border:2px solid currentColor;border-radius:6px;padding:4px 12px;cursor:pointer;background:${rkTab==k?'#ffd23f':'transparent'};color:${rkTab==k?'#1b2540':'inherit'}">${n}</button>`).join('')}</div><ol id="rk" style="text-align:left;margin:4px 0 0;padding-left:1.6em;font-size:14px;max-height:140px;overflow:auto"></ol>`
 }
 function setInk(c){INKC=c;try{localStorage.setItem('dd_color',c)}catch(e){}document.querySelectorAll('.sw').forEach(b=>b.classList.toggle('on',b.dataset.c===c))}
 function bindMenu(){
   document.querySelectorAll('.sw').forEach(b=>b.onclick=()=>setInk(b.dataset.c));
   document.querySelectorAll('.md').forEach(b=>b.onclick=()=>setMode(+b.dataset.h));
+  document.querySelectorAll('.rt').forEach(b=>b.onclick=()=>{rkTab=b.dataset.t;document.querySelectorAll('.rt').forEach(x=>{const on=x.dataset.t==rkTab;x.style.background=on?'#ffd23f':'transparent';x.style.color=on?'#1b2540':'inherit'});renderRank()});
   const cc=$('#cc');if(cc)cc.oninput=()=>setInk(cc.value);
   const nm=$('#nm');if(nm){nm.value=myName;nm.oninput=()=>{myName=nm.value.trim().slice(0,10);try{localStorage.setItem('dd_name',myName)}catch(e){}}}
   renderRank();
@@ -152,6 +170,13 @@ function bindMenu(){
 function renderRank(){
   const ol=$('#rk');if(!ol)return;ol.innerHTML='';
   const add=t=>{const li=document.createElement('li');li.textContent=t;ol.appendChild(li);return li};
+  if(rkTab=='local'){
+    const list=localTop()[modeIdx()];
+    if(!list.length){ol.style.listStyle='none';ol.style.paddingLeft='0';add('まだ記録がありません');return}
+    ol.style.listStyle='decimal';ol.style.paddingLeft='1.6em';
+    list.forEach(e=>add(e.d?`${e.s}点（${e.d}）`:`${e.s}点`));
+    return;
+  }
   if(dbState=='none'){ol.style.listStyle='none';ol.style.paddingLeft='0';add('ランキングを読み込めませんでした');return}
   if(dbState=='load'){ol.style.listStyle='none';ol.style.paddingLeft='0';add('読み込み中…');return}
   if(dbState=='slow'){ol.style.listStyle='none';ol.style.paddingLeft='0';add('ランキングにつながりません。少し待ってください。');return}
@@ -192,7 +217,7 @@ function setMode(h){
 function box(html){$('#box').innerHTML=html.replace('<div class="b">',menuHtml()+'<div class="b">');$('#ov').classList.remove('hide');bindMenu()}
 function title(){st='title';reset();box(`<img src="${ICON}" alt="らくがきランナーのアイコン" style="width:112px;height:112px;border-radius:24px;display:block;margin:0 auto 10px;box-shadow:0 4px 14px rgba(0,0,0,.18)"><h1>らくがきランナー</h1><p>キャラは自動で右へ進む。<br>指でなぞった線が、足場になる。</p><p>インクは限りがある。<br>穴に落ちず、星を集めよう。</p>${best?`<p>最高 ${best}点</p>`:''}<div class="b">タップでスタート</div>`)}
 function over(){
-  st='over';const sc=score();lastScore=sc;checkAch();if(sc>best){best=sc;try{localStorage.setItem(bk(),best)}catch(e){}}
+  st='over';const sc=score();lastScore=sc;checkAch();recordLocal(sc);if(sc>best){best=sc;try{localStorage.setItem(bk(),best)}catch(e){}}
   box(`<h1>${sc}点</h1><p>${modeIdx()?MODES[modeIdx()].replace(/\(.*\)/,'')+': ':''}${Math.floor(P.x/10)}m 走って、星${got}個${hard?'、敵'+kills+'体':''}${scav?'、インク'+drGot+'個':''}</p><p>最高 ${best}点</p>${newAch.length?'<p>🏆 実績解除: '+newAch.join('、')+'</p>':''}<div class="b">タップでもう一度</div><div class="bt" style="margin-top:12px;font-size:16px;text-decoration:underline;cursor:pointer;padding:6px">スタート画面へ戻る</div>`)
 }
 const score=()=>Math.max(0,Math.floor(P.x/10))+got*10+kills*20;
