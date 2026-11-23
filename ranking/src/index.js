@@ -3,7 +3,7 @@
 //   GET  /                              -> "ok"
 //   GET  /ranking?mode=0&uuid=<uuid>    -> { top: [...10], total, myRank, myBest }
 //   POST /scores { uuid, name, score, mode } -> ベスト更新時のみ上書きし { ok, updated, rank, name } を返す
-// 名前は初回登録時に固定され、以後は変更できない（他モードで登録済みならその名前を引き継ぐ）
+// 名前は登録のたびに最新のものへ更新される（アルケミーフュージョンと同じ方式）。改名は全モードの行へ反映される
 // mode: 0=ノーマル / 1=ハード / 2=インク拾い（ゲーム側の modeIdx と一致）
 const ALLOW_ORIGIN = 'https://tenkai-t.github.io';
 
@@ -90,23 +90,14 @@ export default {
         let body;
         try { body = await request.json(); } catch (e) { return json({ error: 'invalid json' }, 400); }
         const uuid = body && body.uuid;
+        const name = body && cleanName(body.name);
         const score = body && body.score;
         const mode = body && body.mode;
         if (!validUuid(uuid)) return json({ error: 'invalid uuid' }, 400);
+        if (name === null) return json({ error: 'invalid name' }, 400);
+        if (isNgName(name)) return json({ error: 'name not allowed' }, 400);
         if (!validScore(score)) return json({ error: 'invalid score' }, 400);
         if (!validMode(mode)) return json({ error: 'invalid mode' }, 400);
-        // 名前は初回登録時に固定され、以後は変更できない
-        const anyRow = await env.DB.prepare(
-          'SELECT name FROM scores WHERE uuid = ? ORDER BY id ASC LIMIT 1'
-        ).bind(uuid).first();
-        let name;
-        if (anyRow) {
-          name = anyRow.name;
-        } else {
-          name = cleanName(body && body.name);
-          if (name === null) return json({ error: 'invalid name' }, 400);
-          if (isNgName(name)) return json({ error: 'name not allowed' }, 400);
-        }
         const cur = await env.DB.prepare(
           'SELECT id, name, score, created_at, updated_at FROM scores WHERE uuid = ? AND mode = ?'
         ).bind(uuid, mode).first();
@@ -118,6 +109,8 @@ export default {
           const ins = await env.DB.prepare(
             'INSERT INTO scores (uuid, mode, name, score, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
           ).bind(uuid, mode, name, score, nowIso, nowIso).run();
+          // 他モードに古い名前の行があれば、最新の名前にそろえる
+          await env.DB.prepare('UPDATE scores SET name = ? WHERE uuid = ? AND name != ?').bind(name, uuid, name).run();
           const rank = await rankOf(env.DB, mode, { id: ins.meta.last_row_id, score, created_at: nowIso });
           return json({ ok: true, updated: true, rank, name });
         }
@@ -125,10 +118,16 @@ export default {
           await env.DB.prepare(
             'UPDATE scores SET score = ?, created_at = ?, updated_at = ? WHERE id = ?'
           ).bind(score, nowIso, nowIso, cur.id).run();
+          if (name !== cur.name) {
+            await env.DB.prepare('UPDATE scores SET name = ? WHERE uuid = ?').bind(name, uuid).run();
+          }
           const rank = await rankOf(env.DB, mode, { id: cur.id, score, created_at: nowIso });
           return json({ ok: true, updated: true, rank, name });
         }
-        // ベスト未満: スコアも名前も据え置き
+        // ベスト未満: スコアは据え置き、名前は最新のものへ更新する
+        if (name !== cur.name) {
+          await env.DB.prepare('UPDATE scores SET name = ? WHERE uuid = ?').bind(name, uuid).run();
+        }
         const rank = await rankOf(env.DB, mode, cur);
         return json({ ok: true, updated: false, rank, name });
       }

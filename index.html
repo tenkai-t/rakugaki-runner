@@ -72,8 +72,8 @@ const bk=()=>'dd_best'+['','_h','_i'][modeIdx()];
 try{best=+localStorage.getItem(bk())||0}catch(e){}
 const RANK_API='https://rakugaki-runner-ranking.t-t14.workers.dev';
 let lastScore=0,INKC=null,myName='',uid=null,rows=[],dbState='load',myRank=null,myBest=null,rankTotal=0;
-let nameLocked=false,lastLocal=null;try{nameLocked=localStorage.getItem('dd_namelock')=='1'}catch(e){}
-const VER='4';
+let lastLocal=null;try{localStorage.removeItem('dd_namelock')}catch(e){}
+const VER='5';
 async function checkUpdate(){
   try{
     const r=await fetch(location.pathname,{cache:'no-store'});
@@ -167,11 +167,11 @@ function nameLocal(){
   const e=d[lastLocal.m].find(x=>x.s==lastLocal.s&&x.d==lastLocal.d);
   if(e){e.n=myName||'ななし';try{localStorage.setItem('dd_local',JSON.stringify(d))}catch(err){}}
 }
-function lockName(n){
+function syncName(n){
   if(!n)return;
-  myName=n;nameLocked=true;
-  try{localStorage.setItem('dd_name',n);localStorage.setItem('dd_namelock','1')}catch(e){}
-  const nm=$('#nm');if(nm){nm.value=n;nm.disabled=true}
+  myName=n;
+  try{localStorage.setItem('dd_name',n)}catch(e){}
+  const nm=$('#nm');if(nm&&nm.value!==n)nm.value=n;
   nameLocal();
 }
 function menuHtml(){
@@ -184,13 +184,12 @@ function bindMenu(){
   document.querySelectorAll('.rt').forEach(b=>b.onclick=()=>{rkTab=b.dataset.t;document.querySelectorAll('.rt').forEach(x=>{const on=x.dataset.t==rkTab;x.style.background=on?'#ffd23f':'transparent';x.style.color=on?'#1b2540':'inherit'});renderRank()});
   const cc=$('#cc');if(cc)cc.oninput=()=>setInk(cc.value);
   const nm=$('#nm');if(nm){nm.value=myName;nm.oninput=()=>{myName=nm.value.trim().slice(0,10);try{localStorage.setItem('dd_name',myName)}catch(e){}nameLocal()}}
-  if(nm&&nameLocked){nm.disabled=true;const m2=$('#regmsg');if(m2)m2.textContent='名前は登録したときの名前で固定されています'}
   renderRank();
   const rg=$('#reg');if(rg)rg.onclick=async()=>{
     const m=$('#regmsg');
     if(!myName){m.textContent='名前を入力してください';return}
     rg.disabled=true;const r=await submit(lastScore);
-    m.textContent=r=='new'?'登録しました!':r=='no'?'自己ベストを更新していないため、点数は据え置きです':r=='ng'?'その名前は使えません。別の名前にしてください':r=='fast'?'少し待ってから登録してください':'登録できませんでした。電波の良いところでもう一度お試しください';
+    m.textContent=r=='new'?'登録しました!':r=='no'?'自己ベストを更新していないため、点数は据え置きです(名前は更新)':r=='ng'?'その名前は使えません。別の名前にしてください':r=='fast'?'少し待ってから登録してください':'登録できませんでした。電波の良いところでもう一度お試しください';
     rg.disabled=false
   }
 }
@@ -219,7 +218,7 @@ async function submit(sc){
     const d=await res.json().catch(()=>null);
     if(res.status==429)return'fast';
     if(!res.ok||!d||!d.ok)return d&&d.error=='name not allowed'?'ng':'err';
-    if(d.name)lockName(d.name);
+    if(d.name)syncName(d.name);
     fetchRank();
     return d.updated?'new':'no'
   }catch(e){return'err'}
@@ -233,7 +232,7 @@ async function fetchRank(){
     if(!res.ok)throw 0;
     const d=await res.json();
     if(md!==modeIdx())return;
-    rows=d.top||[];rankTotal=d.total||0;myRank=d.myRank;myBest=d.myBest;dbState='ok';if(d.myName)lockName(d.myName)
+    rows=d.top||[];rankTotal=d.total||0;myRank=d.myRank;myBest=d.myBest;dbState='ok';if(d.myName)syncName(d.myName)
   }catch(e){if(md===modeIdx()&&dbState!='ok')dbState=timed?'slow':'none'}
   renderRank()
 }
