@@ -74,7 +74,7 @@ try{best=+localStorage.getItem(bk())||0}catch(e){}
 const RANK_API='https://rakugaki-runner-ranking.t-t14.workers.dev';
 let lastScore=0,INKC=null,myName='',uid=null,rows=[],dbState='load',myRank=null,myBest=null,rankTotal=0;
 let lastLocal=null;try{localStorage.removeItem('dd_namelock')}catch(e){}
-const VER='7';
+const VER='8';
 async function checkUpdate(){
   try{
     const r=await fetch(location.pathname,{cache:'no-store'});
@@ -190,7 +190,7 @@ function bindMenu(){
     const m=$('#regmsg');
     if(!myName){m.textContent='名前を入力してください';return}
     rg.disabled=true;const r=await submit(lastScore);
-    m.textContent=r=='new'?'登録しました!':r=='no'?'自己ベストを更新していないため、点数は据え置きです(名前は更新)':r=='ng'?'その名前は使えません。別の名前にしてください':r=='fast'?'少し待ってから登録してください':'登録できませんでした。電波の良いところでもう一度お試しください';
+    m.textContent=r=='new'?'登録しました!':r=='no'?'自己ベストを更新していないため、登録内容は変わりません':r=='ng'?'その名前は使えません。別の名前にしてください':r=='fast'?'少し待ってから登録してください':'登録できませんでした。電波の良いところでもう一度お試しください';
     rg.disabled=false
   }
 }
@@ -219,7 +219,6 @@ async function submit(sc){
     const d=await res.json().catch(()=>null);
     if(res.status==429)return'fast';
     if(!res.ok||!d||!d.ok)return d&&d.error=='name not allowed'?'ng':'err';
-    if(d.name)syncName(d.name);
     fetchRank();
     return d.updated?'new':'no'
   }catch(e){return'err'}
@@ -233,7 +232,7 @@ async function fetchRank(){
     if(!res.ok)throw 0;
     const d=await res.json();
     if(md!==modeIdx())return;
-    rows=d.top||[];rankTotal=d.total||0;myRank=d.myRank;myBest=d.myBest;dbState='ok';if(d.myName)syncName(d.myName)
+    rows=d.top||[];rankTotal=d.total||0;myRank=d.myRank;myBest=d.myBest;dbState='ok';if(d.myName&&!myName)syncName(d.myName)
   }catch(e){if(md===modeIdx()&&dbState!='ok')dbState=timed?'slow':'none'}
   renderRank()
 }

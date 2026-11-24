@@ -3,7 +3,7 @@
 //   GET  /                              -> "ok"
 //   GET  /ranking?mode=0&uuid=<uuid>    -> { top: [...10], total, myRank, myBest }
 //   POST /scores { uuid, name, score, mode } -> ベスト更新時のみ上書きし { ok, updated, rank, name } を返す
-// 名前は登録のたびに最新のものへ更新される（アルケミーフュージョンと同じ方式）。改名は全モードの行へ反映される
+// 名前は記録ごとに付く（アルケミーフュージョンと同じ方式）：そのモードのベストを更新したときだけ、名前も新しいものに変わる。ベスト未満の登録では名前もスコアも変わらない
 // mode: 0=ノーマル / 1=ハード / 2=インク拾い（ゲーム側の modeIdx と一致）
 const ALLOW_ORIGIN = 'https://tenkai-t.github.io';
 
@@ -109,27 +109,19 @@ export default {
           const ins = await env.DB.prepare(
             'INSERT INTO scores (uuid, mode, name, score, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
           ).bind(uuid, mode, name, score, nowIso, nowIso).run();
-          // 他モードに古い名前の行があれば、最新の名前にそろえる
-          await env.DB.prepare('UPDATE scores SET name = ? WHERE uuid = ? AND name != ?').bind(name, uuid, name).run();
           const rank = await rankOf(env.DB, mode, { id: ins.meta.last_row_id, score, created_at: nowIso });
           return json({ ok: true, updated: true, rank, name });
         }
         if (score > cur.score) {
           await env.DB.prepare(
-            'UPDATE scores SET score = ?, created_at = ?, updated_at = ? WHERE id = ?'
-          ).bind(score, nowIso, nowIso, cur.id).run();
-          if (name !== cur.name) {
-            await env.DB.prepare('UPDATE scores SET name = ? WHERE uuid = ?').bind(name, uuid).run();
-          }
+            'UPDATE scores SET name = ?, score = ?, created_at = ?, updated_at = ? WHERE id = ?'
+          ).bind(name, score, nowIso, nowIso, cur.id).run();
           const rank = await rankOf(env.DB, mode, { id: cur.id, score, created_at: nowIso });
           return json({ ok: true, updated: true, rank, name });
         }
-        // ベスト未満: スコアは据え置き、名前は最新のものへ更新する
-        if (name !== cur.name) {
-          await env.DB.prepare('UPDATE scores SET name = ? WHERE uuid = ?').bind(name, uuid).run();
-        }
+        // ベスト未満: スコアも名前も据え置き（名前はベスト更新時にだけ変わる）
         const rank = await rankOf(env.DB, mode, cur);
-        return json({ ok: true, updated: false, rank, name });
+        return json({ ok: true, updated: false, rank, name: cur.name });
       }
       return json({ error: 'not found' }, 404);
     } catch (e) {
