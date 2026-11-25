@@ -76,7 +76,7 @@ try{best=+localStorage.getItem(bk())||0}catch(e){}
 const RANK_API='https://rakugaki-runner-ranking.t-t14.workers.dev';
 let lastScore=0,INKC=null,myName='',uid=null,rows=[],dbState='load',myRank=null,myBest=null,rankTotal=0;
 let lastLocal=null;try{localStorage.removeItem('dd_namelock')}catch(e){}
-const VER='11';
+const VER='12';
 let reliefU=0;
 async function checkUpdate(){
   try{
@@ -352,7 +352,7 @@ function draw(){
   for(const s of segs){const a=cl(LIFE-(t-s.born),0,1);if(a<=0)continue;g.globalAlpha=a;g.beginPath();g.moveTo(s.ax,s.ay);g.lineTo(s.bx,s.by);g.strokeStyle=INKC||C.pen;g.stroke()}
   g.globalAlpha=1;
   // キャラ
-  let ei=IMG.p;if(st=='play'){if(t<reliefU)ei=IMG.r;else if(airT>0.04)ei=P.vy>230?IMG.f:IMG.j}
+  let ei=IMG.p;if(st=='play'){if(t<reliefU)ei=IMG.r;else if(airT>0.04)ei=IMG.j}
   if(!spr(pimg(ei),P.x,P.y-7,38,true)){g.fillStyle=INKC||'#ffa55f';g.beginPath();g.arc(P.x,P.y,P.r,0,7);g.fill()}
   g.restore();
   // UI
