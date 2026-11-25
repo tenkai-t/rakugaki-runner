@@ -74,7 +74,7 @@ try{best=+localStorage.getItem(bk())||0}catch(e){}
 const RANK_API='https://rakugaki-runner-ranking.t-t14.workers.dev';
 let lastScore=0,INKC=null,myName='',uid=null,rows=[],dbState='load',myRank=null,myBest=null,rankTotal=0;
 let lastLocal=null;try{localStorage.removeItem('dd_namelock')}catch(e){}
-const VER='8';
+const VER='9';
 async function checkUpdate(){
   try{
     const r=await fetch(location.pathname,{cache:'no-store'});
@@ -314,7 +314,7 @@ function update(dt){
   if(!deadBy&&P.y>H+60)deadBy='fall';if(!deadBy&&P.x<camX+6)deadBy='back';if(deadBy)over()
 }
 function hazards(dt){
-  for(const s of spikes)if(P.x>s.x-5&&P.x<s.x+s.w+5&&P.y+P.r>s.y-15&&P.y<s.y+6)deadBy='spike';
+  for(const s of spikes)if(P.x>s.x+3&&P.x<s.x+s.w-3&&P.y+P.r>s.y-9&&P.y<s.y+6)deadBy='spike';
   for(const e of enemies){
     if(!e.on)continue;
     e.x-=50*dt;e.y=e.y0+Math.sin(t*2+e.ph)*28;
